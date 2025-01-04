@@ -1,0 +1,66 @@
+MODULE Module1
+    CONST robtarget Target_100:=[[337.500010585,-52.500000388,285.960363773],[0.000000028,-0.000000001,1,0.000000003],[0,0,0,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget Target_60:=[[25,25,170],[0,0,1,0],[-1,0,-1,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget Target_50:=[[0,0,80],[0,0,1,0],[-1,0,-1,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+
+    VAR robtarget P_var;
+    VAR socketdev client_socket;
+    VAR socketdev server_socket;
+    VAR string receive_string;
+    VAR num x_pos;
+    VAR num y_pos;
+    VAR robtarget move_target;
+    VAR num cnt:=1;
+    VAR bool conversion_ok;
+
+
+    PROC main()
+        ! Initialize socket connection
+        SocketCreate server_socket;
+        SocketBind server_socket, "127.0.0.1", 5000;
+        SocketListen server_socket;
+
+        SocketAccept server_socket,client_socket,\Time:=WAIT_MAX;
+        TPWrite "Socket connected.";
+
+        ! Move to Target_100 (home)
+        MoveJ Target_100,v1000,fine,Chwytak_1\WObj:=wobj0;
+        TPWrite "Moved to Target_100 (home).";
+
+        ! Move to Target_60
+        MoveL Target_60,v1000,z20,Chwytak_1\WObj:=Szachownica;
+        TPWrite "Moved to Target_60.";
+
+        ! Move to Target_50 (base point)
+        MoveL Offs(Target_50,0,0,20),v100,z20,Chwytak_1\WObj:=Szachownica;
+        MoveL Target_50,v20,fine,Chwytak_1\WObj:=Szachownica;
+        MoveL Offs(Target_50,0,0,20),v100,z20,Chwytak_1\WObj:=Szachownica;
+        TPWrite "Moved to Target_50 (base point).";
+
+        WHILE cnt <= 5 DO
+            P_var := Target_50;
+            SocketReceive client_socket\Str:=receive_string\Time:=WAIT_MAX;
+            SocketSend client_socket \Str:="received x coordinate";
+            conversion_ok:=StrToVal(receive_string, P_var.trans.x);
+
+            SocketReceive client_socket\Str:=receive_string\Time:=WAIT_MAX;
+            SocketSend client_socket \Str:="received y coordinate";
+            conversion_ok:=StrToVal(receive_string, P_var.trans.y);
+
+            MoveL Offs(P_var,0,0,20),v100,z20,Chwytak_1\WObj:=Szachownica;
+            MoveL P_var,v20,fine,Chwytak_1\WObj:=Szachownica;
+            MoveL Offs(P_var,0,0,20),v100,z20,Chwytak_1\WObj:=Szachownica;
+
+            cnt:= cnt + 1;
+        ENDWHILE
+
+        ! Return to Target_100 (home)
+        MoveJ Target_100,v1000,fine,Chwytak_1\WObj:=wobj0;
+        TPWrite "Returned to Target_100 (home).";
+
+        ! Close the socket connection
+        SocketClose server_socket;
+        SocketClose client_socket;
+        TPWrite "Socket connection closed.";
+    ENDPROC
+ENDMODULE
